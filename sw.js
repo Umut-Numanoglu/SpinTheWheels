@@ -1,6 +1,6 @@
 /* Offline cache for the Wheel site */
-const CACHE_NAME = "wheel-offline-v1";
-const ASSETS = ["./", "./index.html", "./options.html", "./manifest.webmanifest"];
+const CACHE_NAME = "wheel-offline-v2";
+const ASSETS = ["./", "./index.html", "./options.html", "./styles.css", "./manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -35,7 +35,11 @@ self.addEventListener("fetch", (event) => {
 
       try {
         const res = await fetch(req);
-        if (req.method === "GET" && res.ok && (url.pathname.endsWith(".html") || url.pathname.endsWith(".webmanifest"))) {
+        if (
+          req.method === "GET" &&
+          res.ok &&
+          (url.pathname.endsWith(".html") || url.pathname.endsWith(".webmanifest") || url.pathname.endsWith(".css"))
+        ) {
           cache.put(req, res.clone());
         }
         return res;
