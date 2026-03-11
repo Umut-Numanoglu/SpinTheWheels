@@ -143,6 +143,32 @@
         display: grid;
         gap: 10px;
       }
+      .toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(0, 0, 0, 0.18);
+        border-radius: 14px;
+      }
+      .toggle .txt {
+        display: grid;
+        gap: 2px;
+      }
+      .toggle .txt strong {
+        font-size: 12px;
+      }
+      .toggle .txt span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .toggle input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        accent-color: var(--accent);
+      }
       label {
         display: grid;
         gap: 6px;
@@ -222,6 +248,13 @@
             Tip: On the wheel page, press <kbd>Space</kbd> to spin. This page uses
             <code>localStorage</code> only (no server).
           </div>
+          <div class="toggle">
+            <div class="txt">
+              <strong>Spin wheels one after another</strong>
+              <span>If off, all wheels spin at the same time.</span>
+            </div>
+            <input id="sequentialSpin" type="checkbox" />
+          </div>
           <div class="grid" id="rings"></div>
         </div>
       </section>
@@ -235,6 +268,7 @@
       const STORAGE_KEY = "wheel:v1";
 
       const defaultConfig = {
+        sequentialSpin: true,
         rings: [
           { name: "What", options: ["Coffee", "Tea", "Water", "Juice"] },
           { name: "Where", options: ["Home", "Office", "Cafe", "Outside"] },
@@ -279,12 +313,14 @@
       const saveBtn = document.getElementById("saveBtn");
       const restoreBtn = document.getElementById("restoreBtn");
       const addRingBtn = document.getElementById("addRingBtn");
+      const sequentialSpinEl = document.getElementById("sequentialSpin");
 
-      /** @type {{ rings: { name: string, options: string[] }[] }} */
+      /** @type {{ sequentialSpin?: boolean, rings: { name: string, options: string[] }[] }} */
       let config = loadConfig();
 
       function render() {
         ringsEl.innerHTML = "";
+        sequentialSpinEl.checked = config.sequentialSpin !== false;
         const rings = config.rings.slice(0, 6);
 
         rings.forEach((ring, idx) => {
@@ -312,7 +348,7 @@
       }
 
       function readFormIntoConfig() {
-        const next = { rings: [] };
+        const next = { sequentialSpin: sequentialSpinEl.checked, rings: [] };
         const ringCount = Math.min(6, config.rings.length);
         for (let i = 0; i < ringCount; i++) {
           const nameInput = document.querySelector(`[data-name="${i}"]`);

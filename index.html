@@ -323,9 +323,10 @@
       const STORAGE_KEY = "wheel:v1";
 
       /** @typedef {{ name: string, options: string[] }} RingConfig */
-      /** @typedef {{ rings: RingConfig[] }} WheelConfig */
+      /** @typedef {{ sequentialSpin?: boolean, rings: RingConfig[] }} WheelConfig */
 
       const defaultConfig = /** @type {WheelConfig} */ ({
+        sequentialSpin: true,
         rings: [
           { name: "What", options: ["Coffee", "Tea", "Water", "Juice"] },
           { name: "Where", options: ["Home", "Office", "Cafe", "Outside"] },
@@ -438,6 +439,7 @@
         toAngles: /** @type {number[]} */ ([]),
         angles: /** @type {number[]} */ ([]),
         picks: /** @type {(number|null)[]} */ ([]),
+        activeRing: 0,
       };
 
       function ensureStateSize() {
@@ -584,10 +586,11 @@
           .replaceAll("'", "&#039;");
       }
 
-      function spin() {
+      function spinAllAtOnce() {
         if (state.spinning) return;
         ensureStateSize();
         state.spinning = true;
+        spinBtn.disabled = true;
         state.startedAt = performance.now();
         state.durationMs = 2800 + Math.random() * 1200;
         state.fromAngles = state.angles.slice();
@@ -596,17 +599,15 @@
           const segs = Math.max(2, options.length);
           const base = state.angles[idx] ?? 0;
           const extraTurns = 4 + Math.random() * 3;
-          // land close to a segment center to feel intentional
           const targetIndex = Math.floor(Math.random() * segs);
           const segAngle = (2 * Math.PI) / segs;
           const targetAngle = -Math.PI / 2 - (targetIndex + 0.5) * segAngle;
           return base + extraTurns * Math.PI * 2 + (targetAngle - base);
         });
-
-        requestAnimationFrame(tick);
+        requestAnimationFrame(tickAll);
       }
 
-      function tick(now) {
+      function tickAll(now) {
         const t = clamp((now - state.startedAt) / state.durationMs, 0, 1);
         const e = easeOutCubic(t);
         for (let i = 0; i < state.angles.length; i++) {
@@ -617,19 +618,107 @@
         draw();
 
         if (t < 1) {
-          requestAnimationFrame(tick);
+          requestAnimationFrame(tickAll);
           return;
         }
 
         state.spinning = false;
-        // normalize angles for numerical stability
+        spinBtn.disabled = false;
         state.angles = state.angles.map((a) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI));
         computePicks();
         renderResult();
       }
 
+      function spinSequential() {
+        if (state.spinning) return;
+        ensureStateSize();
+        state.spinning = true;
+        spinBtn.disabled = true;
+        state.activeRing = 0;
+        // clear existing picks; we'll fill them as each ring completes
+        state.picks = state.picks.map(() => null);
+        renderResult();
+        startRingSpin(state.activeRing);
+      }
+
+      function startRingSpin(ringIndex) {
+        ensureStateSize();
+        const ring = config.rings[ringIndex];
+        if (!ring) {
+          state.spinning = false;
+          spinBtn.disabled = false;
+          computePicks();
+          renderResult();
+          return;
+        }
+
+        state.startedAt = performance.now();
+        state.durationMs = 1600 + Math.random() * 900 + ringIndex * 120;
+        state.fromAngles = state.angles.slice();
+
+        const options = ring.options.length ? ring.options : ["(empty)"];
+        const segs = Math.max(2, options.length);
+        const base = state.angles[ringIndex] ?? 0;
+        const extraTurns = 4 + Math.random() * 3;
+        const targetIndex = Math.floor(Math.random() * segs);
+        const segAngle = (2 * Math.PI) / segs;
+        const targetAngle = -Math.PI / 2 - (targetIndex + 0.5) * segAngle;
+
+        state.toAngles = state.angles.slice();
+        state.toAngles[ringIndex] = base + extraTurns * Math.PI * 2 + (targetAngle - base);
+
+        requestAnimationFrame(tick);
+      }
+
+      function tick(now) {
+        const t = clamp((now - state.startedAt) / state.durationMs, 0, 1);
+        const e = easeOutCubic(t);
+        const i = state.activeRing;
+        const a0 = state.fromAngles[i] ?? 0;
+        const a1 = state.toAngles[i] ?? 0;
+        state.angles[i] = a0 + (a1 - a0) * e;
+        draw();
+
+        if (t < 1) {
+          requestAnimationFrame(tick);
+          return;
+        }
+
+        // normalize angles for numerical stability
+        state.angles[i] = ((state.angles[i] % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+
+        // lock pick for this ring
+        {
+          const ring = config.rings[i];
+          const options = ring?.options?.length ? ring.options : ["(empty)"];
+          const segs = options.length;
+          state.picks[i] = angleAtTopToIndex(state.angles[i] ?? 0, segs);
+          renderResult();
+        }
+
+        // advance to next ring
+        state.activeRing += 1;
+        if (state.activeRing < config.rings.length) {
+          startRingSpin(state.activeRing);
+          return;
+        }
+
+        state.spinning = false;
+        spinBtn.disabled = false;
+        renderResult();
+      }
+
+      function spin() {
+        if (config.sequentialSpin === false) {
+          spinAllAtOnce();
+        } else {
+          spinSequential();
+        }
+      }
+
       function reset() {
         state.spinning = false;
+        spinBtn.disabled = false;
         ensureStateSize();
         state.angles = state.angles.map(() => 0);
         state.picks = state.picks.map(() => null);
