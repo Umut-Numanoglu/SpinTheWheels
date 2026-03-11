@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0b1020" />
+    <title>Wheel — Spin to Decide</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b1020;
+        --panel: rgba(255, 255, 255, 0.06);
+        --panel2: rgba(255, 255, 255, 0.1);
+        --text: rgba(255, 255, 255, 0.92);
+        --muted: rgba(255, 255, 255, 0.7);
+        --accent: #7c5cff;
+        --ok: #34d399;
+        --danger: #fb7185;
+        --shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+        --radius: 18px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        font: 14px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell,
+          Noto Sans, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        color: var(--text);
+        background: radial-gradient(1200px 700px at 25% 10%, rgba(124, 92, 255, 0.25), transparent 55%),
+          radial-gradient(900px 650px at 85% 0%, rgba(52, 211, 153, 0.18), transparent 55%),
+          radial-gradient(700px 600px at 60% 110%, rgba(251, 113, 133, 0.16), transparent 55%),
+          var(--bg);
+      }
+      a {
+        color: inherit;
+        text-underline-offset: 3px;
+      }
+      .wrap {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 22px 18px 28px;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+      header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 18px;
+        letter-spacing: 0.2px;
+      }
+      header .right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--muted);
+      }
+      .pill {
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.06);
+        padding: 6px 10px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        user-select: none;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.4);
+      }
+      .dot.ok {
+        background: var(--ok);
+        box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.15);
+      }
+      main {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 14px;
+      }
+      @media (max-width: 900px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+      }
+      .card {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+      .card .hd {
+        padding: 14px 14px 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .card .hd .title {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .card .hd .title strong {
+        font-size: 13px;
+      }
+      .card .hd .title span {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .card .bd {
+        padding: 14px;
+      }
+      .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      button {
+        appearance: none;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text);
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+      }
+      button:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.22);
+      }
+      button:active {
+        transform: translateY(1px);
+      }
+      button.primary {
+        background: rgba(124, 92, 255, 0.18);
+        border-color: rgba(124, 92, 255, 0.5);
+      }
+      button.primary:hover {
+        background: rgba(124, 92, 255, 0.26);
+      }
+      button.danger {
+        background: rgba(251, 113, 133, 0.14);
+        border-color: rgba(251, 113, 133, 0.45);
+      }
+      .canvasWrap {
+        display: grid;
+        place-items: center;
+        width: 100%;
+        padding: 10px;
+      }
+      canvas {
+        width: min(560px, 100%);
+        aspect-ratio: 1/1;
+        height: auto;
+        border-radius: 18px;
+        background: rgba(0, 0, 0, 0.18);
+      }
+      .pointer {
+        position: relative;
+        width: min(560px, 100%);
+        margin-top: 8px;
+        height: 0;
+      }
+      .pointer:before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: -10px;
+        transform: translateX(-50%);
+        width: 0;
+        height: 0;
+        border-left: 12px solid transparent;
+        border-right: 12px solid transparent;
+        border-top: 18px solid rgba(255, 255, 255, 0.92);
+        filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.45));
+      }
+      .result {
+        display: grid;
+        gap: 10px;
+      }
+      .result .box {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(0, 0, 0, 0.18);
+        border-radius: 14px;
+        padding: 12px;
+        display: grid;
+        gap: 8px;
+      }
+      .result .box .label {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .result .box .value {
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+      }
+      .hint {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .list {
+        display: grid;
+        gap: 10px;
+      }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .row strong {
+        font-size: 12px;
+      }
+      .row span {
+        color: var(--muted);
+        font-size: 12px;
+        text-align: right;
+      }
+      footer {
+        color: var(--muted);
+        font-size: 12px;
+        display: flex;
+        gap: 10px;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      kbd {
+        font: 12px/1.1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+          "Courier New", monospace;
+        padding: 2px 6px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(0, 0, 0, 0.25);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <h1>Spin the Wheel</h1>
+        <div class="right">
+          <span class="pill" id="offlinePill" title="Offline status">
+            <span class="dot" id="offlineDot"></span>
+            <span id="offlineText">Checking…</span>
+          </span>
+          <a class="pill" href="./options.html" title="Edit wheel options">Options</a>
+        </div>
+      </header>
+
+      <main>
+        <section class="card">
+          <div class="hd">
+            <div class="title">
+              <strong>Nested wheels</strong>
+              <span>Click “Spin” or press <kbd>Space</kbd>. The pointer is at the top.</span>
+            </div>
+            <div class="actions">
+              <button id="spinBtn" class="primary" type="button">Spin</button>
+              <button id="resetBtn" type="button">Reset</button>
+            </div>
+          </div>
+          <div class="bd">
+            <div class="canvasWrap">
+              <canvas id="wheel" width="900" height="900" aria-label="Spin wheel"></canvas>
+              <div class="pointer" aria-hidden="true"></div>
+            </div>
+            <div class="hint">
+              Tip: options come from <code>localStorage</code>. Use the “Options” page to change them.
+            </div>
+          </div>
+        </section>
+
+        <aside class="card">
+          <div class="hd">
+            <div class="title">
+              <strong>Decision</strong>
+              <span>One pick per ring.</span>
+            </div>
+            <div class="actions">
+              <button id="copyBtn" type="button">Copy</button>
+              <button id="clearBtn" class="danger" type="button">Clear picks</button>
+            </div>
+          </div>
+          <div class="bd">
+            <div class="result" id="result"></div>
+            <div style="height: 10px"></div>
+            <div class="list" id="wheelMeta"></div>
+          </div>
+        </aside>
+      </main>
+
+      <footer>
+        <span>Offline-ready (service worker) • No dependencies</span>
+        <span>Files: <code>index.html</code> • <code>options.html</code></span>
+      </footer>
+    </div>
+
+    <script type="module">
+      const STORAGE_KEY = "wheel:v1";
+
+      /** @typedef {{ name: string, options: string[] }} RingConfig */
+      /** @typedef {{ rings: RingConfig[] }} WheelConfig */
+
+      const defaultConfig = /** @type {WheelConfig} */ ({
+        rings: [
+          { name: "What", options: ["Coffee", "Tea", "Water", "Juice"] },
+          { name: "Where", options: ["Home", "Office", "Cafe", "Outside"] },
+          { name: "When", options: ["Now", "In 30 min", "Tonight", "Tomorrow"] },
+        ],
+      });
+
+      function loadConfig() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return defaultConfig;
+          const parsed = JSON.parse(raw);
+          if (!parsed?.rings?.length) return defaultConfig;
+          return parsed;
+        } catch {
+          return defaultConfig;
+        }
+      }
+
+      function saveConfig(cfg) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+      }
+
+      function normalizeOptions(options) {
+        return options
+          .map((s) => String(s ?? "").trim())
+          .filter(Boolean)
+          .slice(0, 64);
+      }
+
+      function clamp(n, a, b) {
+        return Math.max(a, Math.min(b, n));
+      }
+
+      function easeOutCubic(t) {
+        return 1 - Math.pow(1 - t, 3);
+      }
+
+      function hslToRgb(h, s, l) {
+        const C = (1 - Math.abs(2 * l - 1)) * s;
+        const hp = h / 60;
+        const x = C * (1 - Math.abs((hp % 2) - 1));
+        let r1 = 0,
+          g1 = 0,
+          b1 = 0;
+        if (0 <= hp && hp < 1) [r1, g1, b1] = [C, x, 0];
+        else if (1 <= hp && hp < 2) [r1, g1, b1] = [x, C, 0];
+        else if (2 <= hp && hp < 3) [r1, g1, b1] = [0, C, x];
+        else if (3 <= hp && hp < 4) [r1, g1, b1] = [0, x, C];
+        else if (4 <= hp && hp < 5) [r1, g1, b1] = [x, 0, C];
+        else if (5 <= hp && hp < 6) [r1, g1, b1] = [C, 0, x];
+        const m = l - C / 2;
+        const r = Math.round(255 * (r1 + m));
+        const g = Math.round(255 * (g1 + m));
+        const b = Math.round(255 * (b1 + m));
+        return { r, g, b };
+      }
+
+      function pickContrastText({ r, g, b }) {
+        const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+        return luminance > 0.65 ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.92)";
+      }
+
+      function ringColors(ringIndex, segments) {
+        const base = (ringIndex * 50 + 220) % 360;
+        return Array.from({ length: segments }, (_, i) => {
+          const hue = (base + (360 / segments) * i) % 360;
+          const { r, g, b } = hslToRgb(hue, 0.75, 0.52);
+          const fill = `rgba(${r},${g},${b},0.95)`;
+          const text = pickContrastText({ r, g, b });
+          return { fill, text };
+        });
+      }
+
+      function angleAtTopToIndex(angleRad, segments) {
+        // Pointer is at -90° (top). Convert wheel rotation to the segment index under pointer.
+        const a = ((-Math.PI / 2 - angleRad) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+        const seg = (2 * Math.PI) / segments;
+        return clamp(Math.floor(a / seg), 0, segments - 1);
+      }
+
+      const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById("wheel"));
+      const ctx = canvas.getContext("2d", { alpha: true });
+      if (!ctx) throw new Error("Canvas 2D context not available");
+
+      const spinBtn = document.getElementById("spinBtn");
+      const resetBtn = document.getElementById("resetBtn");
+      const copyBtn = document.getElementById("copyBtn");
+      const clearBtn = document.getElementById("clearBtn");
+      const resultEl = document.getElementById("result");
+      const metaEl = document.getElementById("wheelMeta");
+
+      const offlineDot = document.getElementById("offlineDot");
+      const offlineText = document.getElementById("offlineText");
+
+      let config = loadConfig();
+      config = {
+        rings: config.rings.slice(0, 6).map((r, i) => ({
+          name: String(r?.name ?? `Wheel ${i + 1}`).trim() || `Wheel ${i + 1}`,
+          options: normalizeOptions(r?.options ?? defaultConfig.rings[i]?.options ?? ["Option A", "Option B"]),
+        })),
+      };
+      saveConfig(config);
+
+      const state = {
+        spinning: false,
+        startedAt: 0,
+        durationMs: 3200,
+        fromAngles: /** @type {number[]} */ ([]),
+        toAngles: /** @type {number[]} */ ([]),
+        angles: /** @type {number[]} */ ([]),
+        picks: /** @type {(number|null)[]} */ ([]),
+      };
+
+      function ensureStateSize() {
+        const n = config.rings.length;
+        while (state.angles.length < n) state.angles.push(0);
+        while (state.picks.length < n) state.picks.push(null);
+        state.angles.length = n;
+        state.picks.length = n;
+      }
+
+      function draw() {
+        ensureStateSize();
+        const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        const size = 900;
+        if (canvas.width !== size * dpr || canvas.height !== size * dpr) {
+          canvas.width = size * dpr;
+          canvas.height = size * dpr;
+        }
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, size, size);
+
+        const cx = size / 2;
+        const cy = size / 2;
+
+        // backdrop
+        ctx.save();
+        const g = ctx.createRadialGradient(cx, cy, 20, cx, cy, size * 0.48);
+        g.addColorStop(0, "rgba(255,255,255,0.08)");
+        g.addColorStop(1, "rgba(0,0,0,0.35)");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(cx, cy, size * 0.47, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        const rings = config.rings;
+        const outerRadius = size * 0.44;
+        const gap = size * 0.008;
+        const ringThickness = (outerRadius - size * 0.11 - gap * (rings.length - 1)) / rings.length;
+        const fontBase = clamp(size / 48, 12, 18);
+
+        for (let r = 0; r < rings.length; r++) {
+          const ring = rings[r];
+          const options = ring.options.length ? ring.options : ["(empty)"];
+          const segs = options.length;
+          const colors = ringColors(r, segs);
+
+          const rOuter = outerRadius - r * (ringThickness + gap);
+          const rInner = rOuter - ringThickness;
+
+          const angle = state.angles[r] ?? 0;
+          const segAngle = (2 * Math.PI) / segs;
+
+          for (let i = 0; i < segs; i++) {
+            const start = angle + i * segAngle;
+            const end = start + segAngle;
+
+            // segment
+            ctx.beginPath();
+            ctx.arc(cx, cy, rOuter, start, end);
+            ctx.arc(cx, cy, rInner, end, start, true);
+            ctx.closePath();
+            ctx.fillStyle = colors[i].fill;
+            ctx.fill();
+
+            ctx.strokeStyle = "rgba(0,0,0,0.28)";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // text
+            const mid = (start + end) / 2;
+            const tx = cx + Math.cos(mid) * ((rOuter + rInner) / 2);
+            const ty = cy + Math.sin(mid) * ((rOuter + rInner) / 2);
+
+            ctx.save();
+            ctx.translate(tx, ty);
+            ctx.rotate(mid + Math.PI / 2);
+            ctx.fillStyle = colors[i].text;
+            ctx.font = `700 ${fontBase - r * 1}px system-ui, Segoe UI, sans-serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            const label = String(options[i]);
+            const max = Math.max(8, Math.floor(ringThickness / (fontBase * 0.6)));
+            const shown = label.length > max ? label.slice(0, Math.max(0, max - 1)) + "…" : label;
+            ctx.fillText(shown, 0, 0);
+            ctx.restore();
+          }
+        }
+
+        // center cap
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, size * 0.09, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(0,0,0,0.45)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.12)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function computePicks() {
+        ensureStateSize();
+        const picks = config.rings.map((ring, idx) => {
+          const options = ring.options.length ? ring.options : ["(empty)"];
+          const segs = options.length;
+          const i = angleAtTopToIndex(state.angles[idx] ?? 0, segs);
+          return i;
+        });
+        state.picks = picks;
+      }
+
+      function renderResult() {
+        ensureStateSize();
+        resultEl.innerHTML = "";
+        metaEl.innerHTML = "";
+
+        for (let i = 0; i < config.rings.length; i++) {
+          const ring = config.rings[i];
+          const options = ring.options.length ? ring.options : ["(empty)"];
+          const pickIdx = state.picks[i];
+          const value = pickIdx == null ? "—" : options[pickIdx] ?? "—";
+
+          const box = document.createElement("div");
+          box.className = "box";
+          box.innerHTML = `<div class="label">${escapeHtml(ring.name)}</div><div class="value">${escapeHtml(
+            value
+          )}</div>`;
+          resultEl.appendChild(box);
+
+          const row = document.createElement("div");
+          row.className = "row";
+          row.innerHTML = `<strong>${escapeHtml(ring.name)}</strong><span>${options.length} options</span>`;
+          metaEl.appendChild(row);
+        }
+      }
+
+      function escapeHtml(s) {
+        return String(s)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function spin() {
+        if (state.spinning) return;
+        ensureStateSize();
+        state.spinning = true;
+        state.startedAt = performance.now();
+        state.durationMs = 2800 + Math.random() * 1200;
+        state.fromAngles = state.angles.slice();
+        state.toAngles = config.rings.map((ring, idx) => {
+          const options = ring.options.length ? ring.options : ["(empty)"];
+          const segs = Math.max(2, options.length);
+          const base = state.angles[idx] ?? 0;
+          const extraTurns = 4 + Math.random() * 3;
+          // land close to a segment center to feel intentional
+          const targetIndex = Math.floor(Math.random() * segs);
+          const segAngle = (2 * Math.PI) / segs;
+          const targetAngle = -Math.PI / 2 - (targetIndex + 0.5) * segAngle;
+          return base + extraTurns * Math.PI * 2 + (targetAngle - base);
+        });
+
+        requestAnimationFrame(tick);
+      }
+
+      function tick(now) {
+        const t = clamp((now - state.startedAt) / state.durationMs, 0, 1);
+        const e = easeOutCubic(t);
+        for (let i = 0; i < state.angles.length; i++) {
+          const a0 = state.fromAngles[i] ?? 0;
+          const a1 = state.toAngles[i] ?? 0;
+          state.angles[i] = a0 + (a1 - a0) * e;
+        }
+        draw();
+
+        if (t < 1) {
+          requestAnimationFrame(tick);
+          return;
+        }
+
+        state.spinning = false;
+        // normalize angles for numerical stability
+        state.angles = state.angles.map((a) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI));
+        computePicks();
+        renderResult();
+      }
+
+      function reset() {
+        state.spinning = false;
+        ensureStateSize();
+        state.angles = state.angles.map(() => 0);
+        state.picks = state.picks.map(() => null);
+        draw();
+        renderResult();
+      }
+
+      function clearPicks() {
+        state.picks = state.picks.map(() => null);
+        renderResult();
+      }
+
+      function copyDecision() {
+        const parts = config.rings.map((ring, i) => {
+          const options = ring.options.length ? ring.options : ["(empty)"];
+          const pickIdx = state.picks[i];
+          const value = pickIdx == null ? "" : options[pickIdx] ?? "";
+          return `${ring.name}: ${value}`.trim();
+        });
+        const text = parts.join("\n").trim();
+        if (!text) return;
+        navigator.clipboard?.writeText(text).catch(() => {
+          // fallback
+          const ta = document.createElement("textarea");
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          ta.remove();
+        });
+      }
+
+      // Offline indicator
+      function updateOfflineUI() {
+        const online = navigator.onLine;
+        offlineDot.classList.toggle("ok", !online);
+        offlineText.textContent = online ? "Online" : "Offline";
+      }
+      window.addEventListener("online", updateOfflineUI);
+      window.addEventListener("offline", updateOfflineUI);
+      updateOfflineUI();
+
+      // Load + render
+      ensureStateSize();
+      draw();
+      computePicks();
+      renderResult();
+
+      // interactions
+      spinBtn.addEventListener("click", spin);
+      resetBtn.addEventListener("click", reset);
+      copyBtn.addEventListener("click", copyDecision);
+      clearBtn.addEventListener("click", clearPicks);
+
+      window.addEventListener("keydown", (e) => {
+        if (e.code === "Space") {
+          e.preventDefault();
+          spin();
+        }
+      });
+
+      // Service worker for offline availability
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("./sw.js").catch(() => {});
+      }
+    </script>
+  </body>
+</html>
